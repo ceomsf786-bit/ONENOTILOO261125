@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Taking App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            background: #f5f5f5;
+        }
+
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .projects-sidebar {
+            width: 240px;
+            background: #7c3aed;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+        }
+
+        .projects-header {
+            padding: 16px 12px;
+            background: #6d28d9;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .projects-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 5px 0;
+        }
+
+        .project-item {
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 13px;
+            margin: 2px 8px;
+            border-radius: 6px;
+            padding: 0;
+        }
+
+        .project-header {
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            justify-content: space-between;
+        }
+
+        .project-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .project-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .project-item:hover .project-actions {
+            opacity: 1;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .delete-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .project-toggle {
+            font-size: 10px;
+            transition: transform 0.2s;
+            cursor: pointer;
+            width: 14px;
+            text-align: center;
+        }
+
+        .project-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .project-item:hover .project-header {
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+        }
+
+        .project-item.active .project-header {
+            background: rgba(255,255,255,0.2);
+            border-left: 3px solid #fbbf24;
+            border-radius: 6px;
+        }
+
+        .project-tabs {
+            display: none;
+            padding-left: 12px;
+        }
+
+        .project-tabs.expanded {
+            display: block;
+        }
+
+        .project-tab-item {
+            padding: 8px 12px 8px 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            position: relative;
+        }
+
+        .project-tab-name {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+        }
+
+        .tab-toggle {
+            font-size: 9px;
+            transition: transform 0.2s;
+            cursor: pointer;
+            width: 12px;
+            text-align: center;
+        }
+
+        .tab-toggle.expanded {
+            transform: rotate(90deg);
+        }
+
+        .project-tab-actions {
+            display: flex;
+            gap: 4px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+
+        .project-tab-item:hover .project-tab-actions {
+            opacity: 1;
+        }
+
+        .tab-action-btn {
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.7);
+            cursor: pointer;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .tab-action-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .project-tab-item:before {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 0;
+            bottom: 50%;
+            width: 1px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .project-tab-item:after {
+            content: '';
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            width: 8px;
+            height: 1px;
+            background: rgba(255,255,255,0.2);
+        }
+
+        .project-tab-item:hover {
+            background: rgba(255,255,255,0.15);
+        }
+
+        .project-tab-item.active {
+            background: rgba(255,255,255,0.25);
+            font-weight: 500;
+        }
+
+        .project-subtab-item {
+            padding: 6px 12px 6px 36px;
+            font-size: 11px;
+        }
+
+        .project-subtab-item:before {
+            left: 24px;
+        }
+
+        .project-subtab-item:after {
+            left: 24px;
+        }
+
+        .project-subtab-item .project-tab-name {
+            padding-left: 0;
+        }
+
+        .tab-level-2 {
+            padding-left: 48px;
+        }
+
+        .tab-level-2:before {
+            left: 36px;
+        }
+
+        .tab-level-2:after {
+            left: 36px;
+        }
+
+        .tab-level-3 {
+            padding-left: 60px;
+        }
+
+        .tab-level-3:before {
+            left: 48px;
+        }
+
+        .tab-level-3:after {
+            left: 48px;
+        }
+
+        .tab-level-4 {
+            padding-left: 72px;
+        }
+
+        .tab-level-4:before {
+            left: 60px;
+        }
+
+        .tab-level-4:after {
+            left: 60px;
+        }
+
+        .add-project-btn {
+            padding: 12px;
+            background: #6d28d9;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            transition: background 0.2s;
+            font-weight: 500;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .add-project-btn:hover {
+            background: #5b21b6;
+        }
+
+        .tabs-sidebar {
+            display: none;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #editorArea {
+            flex: 1;
+            overflow-y: scroll;
+            overflow-x: hidden;
+        }
+
+        #editorArea::-webkit-scrollbar {
+            width: 14px;
+        }
+
+        #editorArea::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        #editorArea::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 7px;
+            border: 3px solid #f1f1f1;
+        }
+
+        #editorArea::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .toolbar {
+            padding: 12px 40px;
+            background: white;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .toolbar-section {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            padding-right: 12px;
+            border-right: 1px solid #e5e7eb;
+        }
+
+        .toolbar-section:last-child {
+            border-right: none;
+        }
+
+        .toolbar button {
+            padding: 8px 20px;
+            background: #7c3aed;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .toolbar button:hover {
+            background: #6d28d9;
+            box-shadow: 0 2px 6px rgba(124,58,237,0.3);
+        }
+
+        .format-btn {
+            padding: 6px 12px;
+            background: #f3f4f6;
+            color: #374151;
+            border: 1px solid #d1d5db;
+            font-weight: 600;
+            min-width: 36px;
+        }
+
+        .format-btn:hover {
+            background: #e5e7eb;
+            box-shadow: none;
+        }
+
+        .format-btn.active {
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }
+
+        .note-title {
+            padding: 30px 40px 15px 40px;
+            font-size: 28px;
+            font-weight: 600;
+            border: none;
+            outline: none;
+            color: #111827;
+            background: transparent;
+        }
+
+        .note-editor {
+            flex: 1;
+            padding: 15px 40px 40px 40px;
+            font-size: 16px;
+            line-height: 1.8;
+            border: none;
+            outline: none;
+            resize: none;
+            overflow-y: auto;
+            color: #374151;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 500px;
+        }
+
+        .editor-container {
+            display: flex;
+            flex-direction: column;
+            max-width: 900px;
+            margin: 0 auto;
+            width: 100%;
+            background: white;
+            min-height: 100%;
+        }
+
+        .editor-scroll-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .note-content {
+            padding: 15px 40px 100px 40px;
+            font-size: 16px;
+            line-height: 1.8;
+            color: #374151;
+            min-height: 100vh;
+            background: white;
+        }
+
+        .note-content:focus {
+            outline: none;
+        }
+
+        .note-content img {
+            max-width: 100%;
+            height: auto;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+
+        .note-content p {
+            margin: 0 0 1em 0;
+        }
+
+        .note-content b, .note-content strong {
+            font-weight: 700;
+        }
+
+        .note-content i, .note-content em {
+            font-style: italic;
+        }
+
+        .note-content u {
+            text-decoration: underline;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-content h3 {
+            margin-bottom: 20px;
+            color: #111827;
+            font-size: 20px;
+        }
+
+        .modal-content input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 20px;
+            transition: border-color 0.2s;
+        }
+
+        .modal-content input:focus {
+            outline: none;
+            border-color: #7c3aed;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        .modal-buttons button {
+            padding: 10px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #6d28d9;
+            box-shadow: 0 2px 8px rgba(124,58,237,0.3);
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        .empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            color: #999;
+            font-size: 18px;
+            background: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="projects-sidebar">
+            <div class="projects-header">Projects</div>
+            <div class="projects-list" id="projectsList"></div>
+            <button class="add-project-btn" onclick="showAddProjectModal()">+ New Project</button>
+        </div>
+
+        <div class="main-content">
+            <div class="toolbar">
+                <div class="toolbar-section">
+                    <button class="format-btn" onclick="formatText('bold')" title="Bold (Ctrl+B)"><b>B</b></button>
+                    <button class="format-btn" onclick="formatText('italic')" title="Italic (Ctrl+I)"><i>I</i></button>
+                    <button class="format-btn" onclick="formatText('underline')" title="Underline (Ctrl+U)"><u>U</u></button>
+                </div>
+                <div class="toolbar-section">
+                    <button onclick="showAddTabModal()">+ New Tab</button>
+                    <button onclick="showAddSubTabModal()">+ New Sub-Tab</button>
+                    <button onclick="exportToPDF()">Export All to PDF</button>
+                </div>
+            </div>
+            <div id="editorArea" class="empty-state">
+                Select or create a tab to start taking notes
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Project Modal -->
+    <div id="projectModal" class="modal">
+        <div class="modal-content">
+            <h3>New Project</h3>
+            <input type="text" id="projectNameInput" placeholder="Project name">
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeModal('projectModal')">Cancel</button>
+                <button class="btn-primary" onclick="addProject()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Tab Modal -->
+    <div id="tabModal" class="modal">
+        <div class="modal-content">
+            <h3 id="tabModalTitle">New Tab</h3>
+            <input type="text" id="tabNameInput" placeholder="Tab name">
+            <div class="modal-buttons">
+                <button class="btn-secondary" onclick="closeModal('tabModal')">Cancel</button>
+                <button class="btn-primary" onclick="addTab()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let data = {
+            projects: [],
+            currentProject: null,
+            currentTab: null
+        };
+
+        let currentParentTab = null;
+        let expandedProjects = new Set();
+        let expandedTabs = new Set();
+
+        function init() {
+            const saved = localStorage.getItem('noteAppData');
+            if (saved) {
+                data = JSON.parse(saved);
+            } else {
+                data.projects.push({
+                    id: Date.now(),
+                    name: 'My First Project',
+                    tabs: []
+                });
+                data.currentProject = data.projects[0].id;
+            }
+            render();
+        }
+
+        function save() {
+            localStorage.setItem('noteAppData', JSON.stringify(data));
+        }
+
+        function render() {
+            renderProjects();
+            renderEditor();
+        }
+
+        function renderProjects() {
+            const list = document.getElementById('projectsList');
+            
+            function renderProjectItem(project) {
+                const isExpanded = expandedProjects.has(project.id);
+                const isActive = project.id === data.currentProject;
+                
+                let html = `
+                    <div class="project-item ${isActive ? 'active' : ''}">
+                        <div class="project-header">
+                            <div class="project-name" onclick="selectProject(${project.id})">
+                                <span class="project-toggle ${isExpanded ? 'expanded' : ''}" 
+                                      onclick="event.stopPropagation(); toggleProject(${project.id})">▸</span>
+                                <span>${project.name}</span>
+                            </div>
+                            <div class="project-actions">
+                                <button class="delete-btn" onclick="event.stopPropagation(); deleteProject(${project.id})" title="Delete project">×</button>
+                            </div>
+                        </div>
+                        <div class="project-tabs ${isExpanded ? 'expanded' : ''}">
+                `;
+                
+                function renderTabInProject(tab, level = 0) {
+                    const isTabExpanded = expandedTabs.has(tab.id);
+                    const hasSubTabs = tab.subTabs && tab.subTabs.length > 0;
+                    const levelClass = level > 0 ? `tab-level-${level}` : '';
+                    const className = `project-tab-item ${levelClass} ${tab.id === data.currentTab ? 'active' : ''}`;
+                    
+                    let tabHtml = `
+                        <div class="${className}">
+                            <div class="project-tab-name" onclick="selectTab(${tab.id})">
+                                ${hasSubTabs ? `<span class="tab-toggle ${isTabExpanded ? 'expanded' : ''}" 
+                                    onclick="event.stopPropagation(); toggleTab(${tab.id})">▸</span>` : '<span style="width: 12px;"></span>'}
+                                <span>📄 ${tab.name}</span>
+                            </div>
+                            <div class="project-tab-actions">
+                                <button class="tab-action-btn" onclick="event.stopPropagation(); showAddSubTabModalFor(${tab.id})" title="Add sub-tab">+</button>
+                                <button class="tab-action-btn" onclick="event.stopPropagation(); deleteTab(${tab.id})" title="Delete tab">×</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    if (hasSubTabs && isTabExpanded) {
+                        tabHtml += tab.subTabs.map(subTab => renderTabInProject(subTab, level + 1)).join('');
+                    }
+                    
+                    return tabHtml;
+                }
+                
+                if (project.tabs && project.tabs.length > 0) {
+                    html += project.tabs.map(tab => renderTabInProject(tab)).join('');
+                }
+                
+                html += `</div></div>`;
+                return html;
+            }
+            
+            list.innerHTML = data.projects.map(p => renderProjectItem(p)).join('');
+        }
+
+        function toggleProject(projectId) {
+            if (expandedProjects.has(projectId)) {
+                expandedProjects.delete(projectId);
+            } else {
+                expandedProjects.add(projectId);
+            }
+            renderProjects();
+        }
+
+        function toggleTab(tabId) {
+            if (expandedTabs.has(tabId)) {
+                expandedTabs.delete(tabId);
+            } else {
+                expandedTabs.add(tabId);
+            }
+            renderProjects();
+        }
+
+        function renderEditor() {
+            const area = document.getElementById('editorArea');
+            const tab = findTab(data.currentTab);
+            
+            if (!tab) {
+                area.className = 'empty-state';
+                area.innerHTML = 'Select or create a tab to start taking notes';
+                return;
+            }
+
+            area.className = '';
+            area.innerHTML = `
+                <div class="editor-container">
+                    <input type="text" class="note-title" value="${tab.name}" 
+                           onchange="updateTabName(this.value)" placeholder="Untitled">
+                    <div class="note-content" contenteditable="true" 
+                         oninput="updateTabContent(this.innerHTML)"
+                         onpaste="handlePaste(event)"
+                         data-placeholder="Start typing your notes here...">${tab.content || ''}</div>
+                </div>
+            `;
+        }
+
+        function formatText(command) {
+            document.execCommand(command, false, null);
+            document.querySelector('.note-content')?.focus();
+        }
+
+        function handlePaste(e) {
+            const items = e.clipboardData.items;
+            
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    e.preventDefault();
+                    
+                    const blob = items[i].getAsFile();
+                    const reader = new FileReader();
+                    
+                    reader.onload = function(event) {
+                        const img = document.createElement('img');
+                        img.src = event.target.result;
+                        img.style.maxWidth = '100%';
+                        img.style.height = 'auto';
+                        img.style.margin = '10px 0';
+                        img.style.borderRadius = '4px';
+                        
+                        const selection = window.getSelection();
+                        if (selection.rangeCount > 0) {
+                            const range = selection.getRangeAt(0);
+                            range.deleteContents();
+                            range.insertNode(img);
+                            range.setStartAfter(img);
+                            range.collapse(true);
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                        
+                        updateTabContent(e.target.innerHTML);
+                    };
+                    
+                    reader.readAsDataURL(blob);
+                    return;
+                }
+            }
+        }
+
+        function findTab(tabId, tabs = null) {
+            if (!tabId) return null;
+            
+            const project = data.projects.find(p => p.id === data.currentProject);
+            if (!project) return null;
+            
+            tabs = tabs || project.tabs;
+            
+            for (const tab of tabs) {
+                if (tab.id === tabId) return tab;
+                if (tab.subTabs) {
+                    const found = findTab(tabId, tab.subTabs);
+                    if (found) return found;
+                }
+            }
+            return null;
+        }
+
+        function selectProject(id) {
+            data.currentProject = id;
+            data.currentTab = null;
+            expandedProjects.add(id);
+            save();
+            render();
+        }
+
+        function selectTab(id) {
+            data.currentTab = id;
+            save();
+            render();
+        }
+
+        function showAddProjectModal() {
+            document.getElementById('projectNameInput').value = '';
+            document.getElementById('projectModal').classList.add('active');
+        }
+
+        function showAddTabModal() {
+            if (!data.currentProject) {
+                alert('Please select a project first');
+                return;
+            }
+            currentParentTab = null;
+            document.getElementById('tabModalTitle').textContent = 'New Tab';
+            document.getElementById('tabNameInput').value = '';
+            document.getElementById('tabModal').classList.add('active');
+        }
+
+        function showAddSubTabModal() {
+            if (!data.currentTab) {
+                alert('Please select a tab first');
+                return;
+            }
+            currentParentTab = data.currentTab;
+            document.getElementById('tabModalTitle').textContent = 'New Sub-Tab';
+            document.getElementById('tabNameInput').value = '';
+            document.getElementById('tabModal').classList.add('active');
+        }
+
+        function showAddSubTabModalFor(parentId) {
+            currentParentTab = parentId;
+            document.getElementById('tabModalTitle').textContent = 'New Sub-Tab';
+            document.getElementById('tabNameInput').value = '';
+            document.getElementById('tabModal').classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function addProject() {
+            const name = document.getElementById('projectNameInput').value.trim();
+            if (!name) return;
+
+            const project = {
+                id: Date.now(),
+                name: name,
+                tabs: []
+            };
+            data.projects.push(project);
+            data.currentProject = project.id;
+            expandedProjects.add(project.id);
+            
+            closeModal('projectModal');
+            save();
+            render();
+        }
+
+        function addTab() {
+            const name = document.getElementById('tabNameInput').value.trim();
+            if (!name) return;
+
+            const project = data.projects.find(p => p.id === data.currentProject);
+            if (!project) return;
+
+            const tab = {
+                id: Date.now(),
+                name: name,
+                content: '',
+                subTabs: []
+            };
+
+            if (currentParentTab) {
+                const parentTab = findTab(currentParentTab);
+                if (parentTab) {
+                    parentTab.subTabs.push(tab);
+                    expandedTabs.add(currentParentTab);
+                }
+            } else {
+                project.tabs.push(tab);
+            }
+
+            data.currentTab = tab.id;
+            
+            closeModal('tabModal');
+            save();
+            render();
+        }
+
+        function deleteProject(id) {
+            if (!confirm('Delete this project and all its tabs?')) return;
+            
+            data.projects = data.projects.filter(p => p.id !== id);
+            
+            if (data.currentProject === id) {
+                data.currentProject = data.projects.length > 0 ? data.projects[0].id : null;
+                data.currentTab = null;
+            }
+            
+            expandedProjects.delete(id);
+            save();
+            render();
+        }
+
+        function deleteTab(id) {
+            if (!confirm('Delete this tab and all its sub-tabs?')) return;
+
+            const project = data.projects.find(p => p.id === data.currentProject);
+            if (!project) return;
+
+            function removeTab(tabs) {
+                for (let i = 0; i < tabs.length; i++) {
+                    if (tabs[i].id === id) {
+                        tabs.splice(i, 1);
+                        return true;
+                    }
+                    if (tabs[i].subTabs && removeTab(tabs[i].subTabs)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            removeTab(project.tabs);
+            
+            if (data.currentTab === id) {
+                data.currentTab = null;
+            }
+            
+            save();
+            render();
+        }
+
+        function updateTabName(name) {
+            const tab = findTab(data.currentTab);
+            if (tab) {
+                tab.name = name;
+                save();
+                renderProjects();
+            }
+        }
+
+        function updateTabContent(content) {
+            const tab = findTab(data.currentTab);
+            if (tab) {
+                tab.content = content;
+                save();
+            }
+        }
+
+        function exportToPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            
+            const project = data.projects.find(p => p.id === data.currentProject);
+            if (!project || project.tabs.length === 0) {
+                alert('No tabs to export!');
+                return;
+            }
+
+            let y = 20;
+            const margin = 20;
+            const lineHeight = 7;
+            const pageHeight = doc.internal.pageSize.height;
+
+            doc.setFontSize(18);
+            doc.text(project.name, margin, y);
+            y += 15;
+
+            function addTab(tab, level = 0) {
+                const indent = level * 10;
+                
+                if (y > pageHeight - 40) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFontSize(14 - level);
+                doc.setFont(undefined, 'bold');
+                doc.text(tab.name, margin + indent, y);
+                y += 10;
+
+                if (tab.content) {
+                    doc.setFont(undefined, 'normal');
+                    doc.setFontSize(11);
+                    const lines = doc.splitTextToSize(tab.content, 170 - indent);
+                    lines.forEach(line => {
+                        if (y > pageHeight - 30) {
+                            doc.addPage();
+                            y = 20;
+                        }
+                        doc.text(line, margin + indent, y);
+                        y += lineHeight;
+                    });
+                }
+
+                y += 5;
+
+                if (tab.subTabs) {
+                    tab.subTabs.forEach(subTab => addTab(subTab, level + 1));
+                }
+            }
+
+            project.tabs.forEach(tab => addTab(tab));
+
+            doc.save(`${project.name}_notes.pdf`);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.target.id === 'projectNameInput' || e.target.id === 'tabNameInput')) {
+                if (document.getElementById('projectModal').classList.contains('active')) {
+                    addProject();
+                } else if (document.getElementById('tabModal').classList.contains('active')) {
+                    addTab();
+                }
+            }
+            
+            // Keyboard shortcuts for formatting
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey) {
+                const activeElement = document.activeElement;
+                if (activeElement && activeElement.classList.contains('note-content')) {
+                    if (e.key === 'b' || e.key === 'B') {
+                        e.preventDefault();
+                        formatText('bold');
+                    } else if (e.key === 'i' || e.key === 'I') {
+                        e.preventDefault();
+                        formatText('italic');
+                    } else if (e.key === 'u' || e.key === 'U') {
+                        e.preventDefault();
+                        formatText('underline');
+                    }
+                }
+            }
+        });
+
+        init();
+    </script>
+</body>
+</html>
