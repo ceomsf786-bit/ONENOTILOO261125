@@ -367,6 +367,24 @@
             box-shadow: 0 2px 6px rgba(124,58,237,0.3);
         }
 
+        .toolbar .backup-btn {
+            background: #10b981;
+        }
+
+        .toolbar .backup-btn:hover {
+            background: #059669;
+            box-shadow: 0 2px 6px rgba(16,185,129,0.3);
+        }
+
+        .toolbar .restore-btn {
+            background: #f59e0b;
+        }
+
+        .toolbar .restore-btn:hover {
+            background: #d97706;
+            box-shadow: 0 2px 6px rgba(245,158,11,0.3);
+        }
+
         .format-btn {
             padding: 6px 12px;
             background: #f3f4f6;
@@ -575,7 +593,12 @@
                 <div class="toolbar-section">
                     <button onclick="showAddTabModal()">+ New Tab</button>
                     <button onclick="showAddSubTabModal()">+ New Sub-Tab</button>
-                    <button onclick="exportToPDF()">Export All to PDF</button>
+                </div>
+                <div class="toolbar-section">
+                    <button onclick="exportToPDF()">Export to PDF</button>
+                    <button class="backup-btn" onclick="backupData()">💾 Backup All Data</button>
+                    <button class="restore-btn" onclick="document.getElementById('restoreInput').click()">📂 Restore Backup</button>
+                    <input type="file" id="restoreInput" accept=".json" style="display: none;" onchange="restoreData(event)">
                 </div>
             </div>
             <div id="editorArea" class="empty-state">
@@ -981,10 +1004,29 @@
             const margin = 20;
             const lineHeight = 7;
             const pageHeight = doc.internal.pageSize.height;
+            const pageWidth = doc.internal.pageSize.width - 2 * margin;
 
             doc.setFontSize(18);
             doc.text(project.name, margin, y);
             y += 15;
+
+            function stripHtmlToText(html) {
+                // Create a temporary div to parse HTML
+                const temp = document.createElement('div');
+                temp.innerHTML = html;
+                
+                // Remove script and style elements
+                const scripts = temp.querySelectorAll('script, style');
+                scripts.forEach(s => s.remove());
+                
+                // Get text content and clean it up
+                let text = temp.textContent || temp.innerText || '';
+                
+                // Clean up excessive whitespace
+                text = text.replace(/\s+/g, ' ').trim();
+                
+                return text;
+            }
 
             function addTab(tab, level = 0) {
                 const indent = level * 10;
@@ -994,28 +1036,44 @@
                     y = 20;
                 }
 
+                // Add tab title
                 doc.setFontSize(14 - level);
                 doc.setFont(undefined, 'bold');
-                doc.text(tab.name, margin + indent, y);
-                y += 10;
+                const titleLines = doc.splitTextToSize(tab.name, pageWidth - indent);
+                titleLines.forEach(line => {
+                    if (y > pageHeight - 30) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(line, margin + indent, y);
+                    y += 8;
+                });
 
+                // Add tab content if it exists
                 if (tab.content) {
                     doc.setFont(undefined, 'normal');
                     doc.setFontSize(11);
-                    const lines = doc.splitTextToSize(tab.content, 170 - indent);
-                    lines.forEach(line => {
-                        if (y > pageHeight - 30) {
-                            doc.addPage();
-                            y = 20;
-                        }
-                        doc.text(line, margin + indent, y);
-                        y += lineHeight;
-                    });
+                    
+                    // Strip HTML and get clean text
+                    const cleanText = stripHtmlToText(tab.content);
+                    
+                    if (cleanText) {
+                        const lines = doc.splitTextToSize(cleanText, pageWidth - indent);
+                        lines.forEach(line => {
+                            if (y > pageHeight - 30) {
+                                doc.addPage();
+                                y = 20;
+                            }
+                            doc.text(line, margin + indent, y);
+                            y += lineHeight;
+                        });
+                    }
                 }
 
                 y += 5;
 
-                if (tab.subTabs) {
+                // Add sub-tabs
+                if (tab.subTabs && tab.subTabs.length > 0) {
                     tab.subTabs.forEach(subTab => addTab(subTab, level + 1));
                 }
             }
@@ -1023,6 +1081,52 @@
             project.tabs.forEach(tab => addTab(tab));
 
             doc.save(`${project.name}_notes.pdf`);
+        }
+
+        function backupData() {
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `notes_backup_${new Date().toISOString().slice(0, 10)}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            alert('Backup downloaded successfully! Keep this file safe.');
+        }
+
+        function restoreData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const restoredData = JSON.parse(e.target.result);
+                    
+                    // Validate the data structure
+                    if (!restoredData.projects || !Array.isArray(restoredData.projects)) {
+                        alert('Invalid backup file format!');
+                        return;
+                    }
+
+                    if (confirm('This will replace all current data with the backup. Are you sure?')) {
+                        data = restoredData;
+                        save();
+                        render();
+                        alert('Data restored successfully!');
+                    }
+                } catch (error) {
+                    alert('Error reading backup file. Please make sure it\'s a valid backup.');
+                    console.error(error);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Reset the input so the same file can be selected again
+            event.target.value = '';
         }
 
         document.addEventListener('keydown', (e) => {
